@@ -8,28 +8,76 @@ import (
 )
 
 type Hub struct {
-	nodes      map[string]bool
-	token      string
-	register   chan string
-	unregister chan string
+	nodes          map[string]bool
+	token          string
+	registerNode   chan string
+	unregisterNode chan string
+	registerUser   chan [2]string
+	unregisterUser chan string
+	freeNode       chan string
+	routes         map[string]string
+	removeUserChan map[string]chan bool
 }
 
 func (hub *Hub) addNode(node string) {
 	hub.nodes[node] = true
+	hub.freeNode <- node
 }
 
 func (hub *Hub) removeNode(node string) {
 	delete(hub.nodes, node)
 }
 
+func (hub *Hub) getFreeNode(user string) string {
+	for {
+		node := <-hub.freeNode
+		_, nodeExist := hub.nodes[node]
+		if nodeExist {
+			return node
+		}
+	}
+}
+
+func (hub *Hub) addRoute(userObject [2]string) {
+	hub.routes[userObject[0]] = userObject[1]
+}
+
+func (hub *Hub) removeRoute(userIP string) {
+	if node, ok := hub.routes[userIP]; ok {
+		delete(hub.routes, userIP)
+		hub.freeNode <- node
+	}
+}
+
 func (hub *Hub) serve() {
 	for {
 		select {
-		case add := <-hub.register:
-			hub.addNode(add)
-			go hub.pingNode(add)
-		case remove := <-hub.unregister:
-			hub.removeNode(remove)
+		case addNode := <-hub.registerNode:
+			hub.addNode(addNode)
+			go hub.pingNode(addNode)
+		case removeNode := <-hub.unregisterNode:
+			hub.removeNode(removeNode)
+		case addUser := <-hub.registerUser:
+			hub.addRoute(addUser)
+		case removeUser := <-hub.unregisterUser:
+			hub.removeRoute(removeUser)
+		}
+	}
+}
+
+func (hub *Hub) checkLostConnect(c chan bool, userIP string) {
+	for {
+		timer := time.NewTimer(time.Minute)
+
+		select {
+		case <-c:
+			timer.Stop()
+			continue
+		case <-timer.C:
+			hub.unregisterUser <- userIP
+			timer.Stop()
+			log.Printf("user %s lost connection", userIP)
+			return
 		}
 	}
 }
@@ -46,17 +94,17 @@ func (hub *Hub) pingNode(nodeString string) {
 
 	for range ticker.C {
 		if _, ok := hub.nodes[nodeString]; !ok {
-			log.Fatalf("node: %s removed from hub", nodeString)
+			log.Printf("node: %s removed from hub", nodeString)
 			return
 		}
 
 		if countErrors >= 5 {
-			log.Fatalf("node: %s lost connection, limit timeout", nodeString)
-			hub.unregister <- nodeString
+			log.Printf("node: %s lost connection, limit timeout", nodeString)
+			hub.unregisterNode <- nodeString
 			return
 		}
 
-		req, err := http.NewRequest("GET", "http://"+nodeString+":6677", nil)
+		req, err := http.NewRequest("GET", "http://"+nodeString+":6677/register", nil)
 
 		if err != nil {
 			log.Println(err)
@@ -84,7 +132,7 @@ func (hub *Hub) pingNode(nodeString string) {
 		body := string(bodyByte)
 
 		if body == "bad token" {
-			log.Fatalf("need check auth token on node: %s", nodeString)
+			log.Printf("need check auth token on node: %s", nodeString)
 			resp.Body.Close()
 			return
 		}
@@ -102,9 +150,14 @@ func (hub *Hub) pingNode(nodeString string) {
 
 func newHub(token string) *Hub {
 	return &Hub{
-		nodes:      make(map[string]bool),
-		token:      token,
-		register:   make(chan string, 10),
-		unregister: make(chan string, 10),
+		nodes:          make(map[string]bool),
+		token:          token,
+		registerNode:   make(chan string, 10),
+		unregisterNode: make(chan string, 10),
+		registerUser:   make(chan [2]string),
+		unregisterUser: make(chan string),
+		routes:         make(map[string]string),
+		freeNode:       make(chan string, 1000),
+		removeUserChan: make(map[string]chan bool),
 	}
 }
