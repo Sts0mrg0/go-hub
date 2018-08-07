@@ -1,10 +1,10 @@
 package main
 
 import (
-	"net/http"
 	"log"
 	"net"
-	)
+	"net/http"
+)
 
 func index(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -12,7 +12,7 @@ func index(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.URL.Query().Get("token")
+	token := r.Header.Get("token")
 
 	if token != hub.token {
 		w.WriteHeader(400)
