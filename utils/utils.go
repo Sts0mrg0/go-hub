@@ -104,7 +104,7 @@ func (hub *Hub) pingNode(nodeString string) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		err := everyTick(netClient, countErrors, hub, nodeString)
+		err := everyTick(netClient, &countErrors, hub, nodeString)
 		if err != nil {
 			log.Println(err)
 			return
@@ -123,12 +123,12 @@ func NewHub(token string) *Hub {
 	}
 }
 
-func everyTick(netClient *http.Client, countErrors int, hub *Hub, nodeString string) error {
+func everyTick(netClient *http.Client, countErrors *int, hub *Hub, nodeString string) error {
 	if _, ok := hub.Nodes.Load(nodeString); !ok {
 		return &ErrorString{fmt.Sprintf("node: %s removed from hub", nodeString)}
 	}
 
-	if countErrors >= 5 {
+	if *countErrors >= 5 {
 		hub.UnregisterNode <- nodeString
 		return &ErrorString{fmt.Sprintf("node: %s lost connection, limit timeout", nodeString)}
 	}
@@ -137,7 +137,7 @@ func everyTick(netClient *http.Client, countErrors int, hub *Hub, nodeString str
 
 	if err != nil {
 		log.Println(err)
-		countErrors++
+		*countErrors++
 		return nil
 	}
 
@@ -146,7 +146,7 @@ func everyTick(netClient *http.Client, countErrors int, hub *Hub, nodeString str
 
 	if err != nil {
 		log.Println(err)
-		countErrors++
+		*countErrors++
 		return nil
 	}
 
@@ -166,9 +166,9 @@ func everyTick(netClient *http.Client, countErrors int, hub *Hub, nodeString str
 
 	if body == pong {
 		log.Printf("node: %s is ACTIVE", nodeString)
-		countErrors = 0
+		*countErrors = 0
 	} else {
-		countErrors++
+		*countErrors++
 		log.Printf("wrong answer from node: %s, body: %s", nodeString, body)
 	}
 	resp.Body.Close()
