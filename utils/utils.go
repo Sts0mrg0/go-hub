@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	badToken = "bad token"
-	pong     = "PONG"
-	tokenKey = "token"
-	urlNode  = "http://%s:6677"
+	badToken      = "bad token"
+	pong          = "PONG"
+	tokenKey      = "token"
+	urlNode       = "http://%s:6677"
+	clientTimeout = time.Second * 2
 )
 
 type Hub struct {
@@ -96,7 +97,7 @@ func (hub *Hub) pingNode(nodeString string) {
 	countErrors := 0
 
 	netClient := &http.Client{
-		Timeout: time.Second * 2,
+		Timeout: clientTimeout,
 	}
 
 	ticker := time.NewTicker(time.Second * 4)
