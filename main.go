@@ -1,6 +1,7 @@
 package main
 
 import (
+	"hub/utils"
 	"log"
 	"net/http"
 	"os"
@@ -16,8 +17,8 @@ func main() {
 		return
 	}
 
-	hub := newHub(token)
-	go hub.serve()
+	hub := utils.NewHub(token)
+	go hub.Serve()
 
 	http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("new request %s: %s", r.RequestURI, r.RemoteAddr)
