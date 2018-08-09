@@ -7,13 +7,22 @@ import (
 	"os"
 )
 
+var (
+	badToken   = "bad token"
+	tokenKey   = "token"
+	numberKey  = "number"
+	noEnv      = "no env %s"
+	newRequest = "new request %s: %s"
+	urlNode    = "http://%s:6677"
+)
+
 func main() {
 	log.Println("start server ...")
 
-	token := os.Getenv("token")
+	token := os.Getenv(tokenKey)
 
 	if token == "" {
-		log.Fatalln("no env TOKEN")
+		log.Fatalf(noEnv, token)
 		return
 	}
 
@@ -21,12 +30,12 @@ func main() {
 	go hub.Serve()
 
 	http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("new request %s: %s", r.RequestURI, r.RemoteAddr)
+		log.Printf(newRequest, r.RequestURI, r.RemoteAddr)
 		index(hub, w, r)
 	})
 
 	http.HandleFunc("/wd/hub/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("new request %s: %s", r.RequestURI, r.RemoteAddr)
+		log.Printf(newRequest, r.RequestURI, r.RemoteAddr)
 		wdHub(hub, w, r)
 	})
 

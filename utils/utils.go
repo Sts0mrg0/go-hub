@@ -9,6 +9,13 @@ import (
 	"time"
 )
 
+var (
+	badToken = "bad token"
+	pong     = "PONG"
+	tokenKey = "token"
+	urlNode  = "http://%s:6677"
+)
+
 type Hub struct {
 	Nodes          sync.Map
 	Token          string
@@ -125,7 +132,7 @@ func everyTick(netClient *http.Client, countErrors int, hub *Hub, nodeString str
 		return &ErrorString{fmt.Sprintf("node: %s lost connection, limit timeout", nodeString)}
 	}
 
-	req, err := http.NewRequest("GET", "http://"+nodeString+":6677/register", nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf(urlNode, nodeString)+"/register", nil)
 
 	if err != nil {
 		log.Println(err)
@@ -133,7 +140,7 @@ func everyTick(netClient *http.Client, countErrors int, hub *Hub, nodeString str
 		return nil
 	}
 
-	req.Header.Set("token", hub.Token)
+	req.Header.Set(tokenKey, hub.Token)
 	resp, err := netClient.Do(req)
 
 	if err != nil {
@@ -151,12 +158,12 @@ func everyTick(netClient *http.Client, countErrors int, hub *Hub, nodeString str
 
 	body := string(bodyByte)
 
-	if body == "bad token" {
+	if body == badToken {
 		resp.Body.Close()
 		return &ErrorString{fmt.Sprintf("need check auth token on node: %s", nodeString)}
 	}
 
-	if body == "PONG" {
+	if body == pong {
 		log.Printf("node: %s is ACTIVE", nodeString)
 		countErrors = 0
 	} else {

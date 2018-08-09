@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"hub/utils"
 	"log"
 	"net"
@@ -42,16 +43,16 @@ func index(hub *utils.Hub, w http.ResponseWriter, r *http.Request) {
 }
 
 func wdHub(hub *utils.Hub, w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
+	token := r.Header.Get(tokenKey)
 
 	if token != hub.Token {
 		w.WriteHeader(400)
-		w.Write([]byte("bad token"))
-		log.Println("bad token")
+		w.Write([]byte(badToken))
+		log.Println(badToken)
 		return
 	}
 
-	number := r.Header.Get("number")
+	number := r.Header.Get(numberKey)
 
 	userIP, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
@@ -63,7 +64,7 @@ func wdHub(hub *utils.Hub, w http.ResponseWriter, r *http.Request) {
 	user := number + "-" + userIP
 
 	if node, ok := hub.Routes.Load(user); ok {
-		u, _ := url.Parse("http://" + node.(string) + ":6677")
+		u, _ := url.Parse(fmt.Sprintf(urlNode, node.(string)))
 		if c, _ok := hub.RemoveUserChan.Load(user); _ok {
 			c.(chan bool) <- true
 		}
@@ -78,7 +79,7 @@ func wdHub(hub *utils.Hub, w http.ResponseWriter, r *http.Request) {
 
 		go hub.CheckLostConnect(c.(chan bool), user)
 
-		u, _ := url.Parse("http://" + freeNode + ":6677")
+		u, _ := url.Parse(fmt.Sprintf(urlNode, freeNode))
 		proxy := httputil.NewSingleHostReverseProxy(u)
 		proxy.ServeHTTP(w, r)
 	}
