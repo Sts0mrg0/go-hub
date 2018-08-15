@@ -16,12 +16,12 @@ func index(hub *utils.Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := r.Header.Get("token")
+	token := r.Header.Get(tokenKey)
 
 	if token != hub.Token {
 		w.WriteHeader(400)
-		w.Write([]byte("bad token"))
-		log.Println("bad token")
+		w.Write([]byte(badToken))
+		log.Println(badToken)
 		return
 	}
 
